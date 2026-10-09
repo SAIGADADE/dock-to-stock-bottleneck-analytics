@@ -1,0 +1,104 @@
+// =====================================================================
+// measures.dax  |  Dock-to-Stock Bottleneck Analytics
+// Create an empty table named _Measures (Home > Enter Data), then add each
+// measure below with Modeling > New Measure.
+// Tables used: Receipts, Segments (see power_query.m).
+// Score weights (0.4 / 0.3 / 0.3), cap (4) and cut-offs (70 / 50 / 35) match
+// the Assumptions sheet in the Excel workbook.
+// Check: QC-to-GRN Wait should score about 83.8 and GRN Processing about 76.3.
+// =====================================================================
+
+
+// ---------- Overview KPIs (Receipts table) ----------
+
+Receipts = DISTINCTCOUNT ( Receipts[Receipt ID] )
+
+Avg Dock-to-Stock (min) = AVERAGE ( Receipts[Total Dock-to-Stock (min)] )
+
+Median Dock-to-Stock (min) = MEDIAN ( Receipts[Total Dock-to-Stock (min)] )
+
+P90 Dock-to-Stock (min) = PERCENTILE.INC ( Receipts[Total Dock-to-Stock (min)], 0.9 )
+
+Open GRNs =
+CALCULATE ( COUNTROWS ( Receipts ), Receipts[GRN Status] IN { "Pending", "On Hold" } )
+
+% Over Target =
+DIVIDE (
+    CALCULATE ( COUNTROWS ( Receipts ), Receipts[Total Dock-to-Stock (min)] > 300 ),
+    CALCULATE ( COUNTROWS ( Receipts ), NOT ISBLANK ( Receipts[Total Dock-to-Stock (min)] ) )
+)
+
+Avg GRN Age (hrs) = AVERAGE ( Receipts[GRN Age (hrs)] )
+
+
+// ---------- Segment measures (Segments table) ----------
+
+Avg Minutes = AVERAGE ( Segments[Minutes] )
+
+Median Minutes = MEDIAN ( Segments[Minutes] )
+
+P90 Minutes = PERCENTILE.INC ( Segments[Minutes], 0.9 )
+
+Breach % =
+DIVIDE (
+    CALCULATE ( COUNTROWS ( Segments ), FILTER ( Segments, Segments[Minutes] > Segments[SLA Minutes] ) ),
+    COUNTROWS ( Segments )
+)
+
+Share of Delay =
+DIVIDE (
+    [Avg Minutes],
+    SUMX ( ALLSELECTED ( Segments[Segment] ), CALCULATE ( [Avg Minutes] ) )
+)
+
+Waiting Share =
+DIVIDE (
+    CALCULATE ( [Avg Minutes], Segments[Type] = "Waiting" ),
+    SUMX ( ALLSELECTED ( Segments[Segment] ), CALCULATE ( [Avg Minutes] ) )
+)
+
+
+// ---------- Bottleneck Score ----------
+
+Delay Share Score =
+DIVIDE ( [Share of Delay], MAXX ( ALLSELECTED ( Segments[Segment] ), [Share of Delay] ) ) * 100
+
+Variability Score =
+MIN ( DIVIDE ( [P90 Minutes], [Median Minutes] ) / 4, 1 ) * 100
+
+Bottleneck Score =
+0.4 * [Delay Share Score] + 0.3 * [Variability Score] + 0.3 * ( [Breach %] * 100 )
+
+Priority =
+SWITCH (
+    TRUE (),
+    [Bottleneck Score] >= 70, "Critical",
+    [Bottleneck Score] >= 50, "High",
+    [Bottleneck Score] >= 35, "Medium",
+    "Low"
+)
+
+
+// ---------- Vendors ----------
+
+Short % of Qty =
+DIVIDE ( SUM ( Receipts[Short Quantity] ), SUM ( Receipts[Quantity] ) )
+
+Damaged % of Qty =
+DIVIDE ( SUM ( Receipts[Damaged Quantity] ), SUM ( Receipts[Quantity] ) )
+
+% Receipts with Short or Damage =
+DIVIDE (
+    CALCULATE ( COUNTROWS ( Receipts ), FILTER ( Receipts, Receipts[Short Quantity] + Receipts[Damaged Quantity] > 0 ) ),
+    COUNTROWS ( Receipts )
+)
+
+
+// ---------- Dock utilisation (use with Dock ID on the axis or in a table) ----------
+// Assumes docks run 24 hours a day, same as the Excel workbook.
+
+Dock Utilisation % =
+DIVIDE (
+    SUM ( Receipts[Unloading (min)] ) / 60,
+    DISTINCTCOUNT ( Receipts[Truck Arrival Date] ) * 24
+)
