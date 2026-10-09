@@ -44,17 +44,15 @@ The weights, SLA targets and cut-offs are my own judgement calls. They are input
 ```
 dock-to-stock-bottleneck-analytics/
 ├── README.md
+├── dock_to_stock_analysis.xlsx   the database + all analysis sheets (live formulas)
+├── raw_inbound_data.csv          4,000 simulated receipts (raw columns only)
 ├── data/
-│   ├── raw_inbound_data.csv         4,000 simulated receipts (raw columns only)
-│   └── generate_dataset.py          creates the data; all assumptions are at the top
-├── excel/
-│   └── dock_to_stock_analysis.xlsx  the database + all analysis sheets (live formulas)
+│   └── generate_dataset.py       creates the data; all assumptions are at the top
 ├── powerbi/
-│   ├── power_query.m                Power Query steps (Receipts, SLA, Segments)
-│   └── measures.dax                 KPI and Bottleneck Score measures
-├── analysis/
-│   └── findings.md                  results, decision model, SOP and limitations
-└── screenshots/                     dashboard screenshots (coming with the Power BI version)
+│   ├── power_query.m             Power Query steps (Receipts, SLA, Segments)
+│   └── measures.dax              KPI and Bottleneck Score measures
+└── analysis/
+    └── findings.md               results, decision model, SOP and limitations
 ```
 
 ### Workbook sheets
@@ -63,7 +61,7 @@ dock-to-stock-bottleneck-analytics/
 
 ## Use the Excel file
 
-Open `excel/dock_to_stock_analysis.xlsx`, click **Enable Editing**, and start at the `Bottleneck_Score` sheet. Change any SLA target or weight on `Assumptions` and the tables update.
+Open `dock_to_stock_analysis.xlsx`, click **Enable Editing**, and start at the `Bottleneck_Score` sheet. Change any SLA target or weight on `Assumptions` and the tables update.
 
 ## Connect Power BI
 
@@ -75,7 +73,7 @@ Open `excel/dock_to_stock_analysis.xlsx`, click **Enable Editing**, and start at
 
 ```bash
 pip install pandas numpy
-python data/generate_dataset.py     # writes data/raw_inbound_data.csv
+python data/generate_dataset.py     # writes raw_inbound_data.csv next to the script
 ```
 
 The Excel workbook was built from that CSV with live formulas, so every table recalculates when an assumption on the `Assumptions` sheet changes.
